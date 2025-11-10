@@ -21,6 +21,46 @@ func initGitRepo() error {
 	return err
 }
 
+// initialize a new git repository with custom default branch
+func initGitRepoWithBranch(defaultBranch string) error {
+	r, err := git.PlainInit(".", false)
+	if err != nil {
+		return err
+	}
+
+	// create and checkout the default branch
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+
+	// create an initial empty commit on the default branch
+	_, err = w.Commit("initial commit", &git.CommitOptions{})
+	if err != nil {
+		return err
+	}
+
+	if defaultBranch != "master" {
+		head, err := r.Head()
+		if err != nil {
+			return err
+		}
+
+		newBranchRef := plumbing.NewBranchReferenceName(defaultBranch)
+		err = r.Storer.SetReference(plumbing.NewHashReference(newBranchRef, head.Hash()))
+		if err != nil {
+			return err
+		}
+
+		err = r.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, newBranchRef))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // add remote origin to the repository
 func addRemoteOrigin(url string) error {
 	r, err := git.PlainOpen(".")

@@ -5,20 +5,21 @@ import (
 )
 
 type Model struct {
-	files            []FileStatus
-	cursor           int
-	quitting         bool
-	showInitMenu     bool
-	showGitHubAuth   bool
-	creatingRepo     bool
-	initingRepo      bool
-	currentBranch    string
-	showBranchMenu   bool
-	creatingBranch   bool
-	switchingBranch  bool
-	showBranchList   bool
-	branches         []string
-	branchListCursor int
+	files             []FileStatus
+	cursor            int
+	quitting          bool
+	showInitMenu      bool
+	showGitHubAuth    bool
+	creatingRepo      bool
+	initingRepo       bool
+	showLocalRepoForm bool
+	currentBranch     string
+	showBranchMenu    bool
+	creatingBranch    bool
+	switchingBranch   bool
+	showBranchList    bool
+	branches          []string
+	branchListCursor  int
 }
 
 type FileStatus struct {
@@ -30,17 +31,18 @@ type FileStatus struct {
 func NewModel() Model {
 	if !isGitRepo() {
 		return Model{
-			files:            []FileStatus{},
-			cursor:           0,
-			quitting:         false,
-			showInitMenu:     true,
-			currentBranch:    "",
-			showBranchMenu:   false,
-			creatingBranch:   false,
-			switchingBranch:  false,
-			showBranchList:   false,
-			branches:         []string{},
-			branchListCursor: 0,
+			files:             []FileStatus{},
+			cursor:            0,
+			quitting:          false,
+			showInitMenu:      true,
+			currentBranch:     "",
+			showBranchMenu:    false,
+			creatingBranch:    false,
+			switchingBranch:   false,
+			showBranchList:    false,
+			branches:          []string{},
+			branchListCursor:  0,
+			showLocalRepoForm: false,
 		}
 	}
 
@@ -55,16 +57,17 @@ func NewModel() Model {
 	}
 
 	return Model{
-		files:            files,
-		cursor:           0,
-		quitting:         false,
-		currentBranch:    currentBranch,
-		showBranchMenu:   false,
-		creatingBranch:   false,
-		switchingBranch:  false,
-		showBranchList:   false,
-		branches:         []string{},
-		branchListCursor: 0,
+		files:             files,
+		cursor:            0,
+		quitting:          false,
+		currentBranch:     currentBranch,
+		showBranchMenu:    false,
+		creatingBranch:    false,
+		switchingBranch:   false,
+		showBranchList:    false,
+		branches:          []string{},
+		branchListCursor:  0,
+		showLocalRepoForm: false,
 	}
 }
 

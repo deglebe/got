@@ -42,19 +42,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "1":
 			if m.showInitMenu {
-				m.initingRepo = true
 				m.showInitMenu = false
-				return m, tea.Cmd(func() tea.Msg {
-					err := initGitRepo()
-					if err != nil {
-						return initErrorMsg{err: err}
-					}
-					files, err := getGitStatus()
-					if err != nil {
-						files = []FileStatus{}
-					}
-					return initCompleteMsg{files: files}
-				})
+				return m, m.initLocalRepo()
 			}
 			if m.showBranchMenu {
 				m.showBranchMenu = false
@@ -332,6 +321,29 @@ func (m *Model) switchBranchForm() tea.Cmd {
 				return switchBranchErrorMsg{err: err}
 			}
 			return switchBranchCompleteMsg{branchName: branchName}
+		})
+	}
+	return nil
+}
+
+// shows local repo form and initializes repository
+func (m *Model) initLocalRepo() tea.Cmd {
+	defaultBranch, err := showLocalRepoForm()
+	if err != nil {
+		// Handle error - could show error message here
+		return nil
+	}
+	if defaultBranch != "" {
+		return tea.Cmd(func() tea.Msg {
+			err := initGitRepoWithBranch(defaultBranch)
+			if err != nil {
+				return initErrorMsg{err: err}
+			}
+			files, err := getGitStatus()
+			if err != nil {
+				files = []FileStatus{}
+			}
+			return initCompleteMsg{files: files}
 		})
 	}
 	return nil

@@ -208,3 +208,30 @@ func showBranchSelectionForm(branches []string) (string, error) {
 	err := form.Run()
 	return selectedBranch, err
 }
+
+// display a huh form for local git repository initialization
+func showLocalRepoForm() (string, error) {
+	var defaultBranch string
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("default branch name").
+				Description("choose the default branch name for your repository (esc to cancel)").
+				Placeholder("main").
+				Value(&defaultBranch).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("default branch name cannot be empty")
+					}
+					if strings.Contains(s, " ") {
+						return fmt.Errorf("branch name cannot contain spaces")
+					}
+					return nil
+				}),
+		),
+	).WithTheme(huh.ThemeCharm())
+
+	err := form.Run()
+	return defaultBranch, err
+}
