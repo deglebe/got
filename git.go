@@ -6,6 +6,7 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 // check if current dir is a git repo
@@ -176,5 +177,84 @@ func commit(message string) error {
 	}
 
 	_, err = w.Commit(message, &git.CommitOptions{})
+	return err
+}
+
+// getCurrentBranch returns the name of the current branch
+func getCurrentBranch() (string, error) {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return "", err
+	}
+
+	head, err := r.Head()
+	if err != nil {
+		return "", err
+	}
+
+	// Check if we're on a branch (not detached HEAD)
+	if head.Name().IsBranch() {
+		return head.Name().Short(), nil
+	}
+
+	return "HEAD", nil
+}
+
+// listBranches returns a list of all branches
+func listBranches() ([]string, error) {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return nil, err
+	}
+
+	branches, err := r.Branches()
+	if err != nil {
+		return nil, err
+	}
+
+	var branchNames []string
+	err = branches.ForEach(func(ref *plumbing.Reference) error {
+		branchNames = append(branchNames, ref.Name().Short())
+		return nil
+	})
+
+	return branchNames, err
+}
+
+// createBranch creates a new branch from the current HEAD
+func createBranch(branchName string) error {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return err
+	}
+
+	head, err := r.Head()
+	if err != nil {
+		return err
+	}
+
+	// Create the new branch
+	refName := plumbing.NewBranchReferenceName(branchName)
+	ref := plumbing.NewHashReference(refName, head.Hash())
+
+	return r.Storer.SetReference(ref)
+}
+
+// switchBranch switches to the specified branch
+func switchBranch(branchName string) error {
+	r, err := git.PlainOpen(".")
+	if err != nil {
+		return err
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+
+	// Checkout the branch
+	err = w.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branchName),
+	})
 	return err
 }

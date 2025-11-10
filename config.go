@@ -84,7 +84,7 @@ func getGitHubToken() (string, error) {
 
 	config.GitHubToken = token
 	if err := saveConfig(config); err != nil {
-		fmt.Printf("warning: Could not save token to config: %v\n", err)
+		fmt.Printf("warning: could not save token to config: %v\n", err)
 	}
 
 	return token, nil

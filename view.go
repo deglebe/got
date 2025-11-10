@@ -69,6 +69,23 @@ func (m Model) renderGitHubAuth() string {
 	return b.String()
 }
 
+// branch menu for branch operations
+func (m Model) renderBranchMenu() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("branch management"))
+	b.WriteString("\n\n")
+	b.WriteString("current branch: " + m.currentBranch + "\n\n")
+	b.WriteString("choose an option:\n\n")
+	b.WriteString("1. create new branch\n")
+	b.WriteString("2. switch branch\n")
+	b.WriteString("3. list all branches\n")
+	b.WriteString("esc. back to main menu\n\n")
+	b.WriteString(helpStyle.Render("press 1, 2, 3, or esc"))
+
+	return b.String()
+}
+
 func (m Model) View() string {
 	if m.quitting {
 		return "goodbye!\n"
@@ -90,9 +107,34 @@ func (m Model) View() string {
 		return "initializing git repository...\n"
 	}
 
+	if m.showBranchMenu {
+		return m.renderBranchMenu()
+	}
+
+	if m.creatingBranch {
+		return "creating branch...\n"
+	}
+
+	if m.switchingBranch {
+		return "switching branch...\n"
+	}
+
+	if m.showCreateBranchForm {
+		return "creating new branch...\nuse the form that appears\n"
+	}
+
+	if m.showSwitchBranchForm {
+		return "switching branch...\nuse the form that appears\n"
+	}
+
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("got"))
+	// Show current branch in title if available
+	title := "got"
+	if m.currentBranch != "" {
+		title += " (" + m.currentBranch + ")"
+	}
+	b.WriteString(titleStyle.Render(title))
 	b.WriteString("\n\n")
 
 	if len(m.files) == 0 {
@@ -123,9 +165,9 @@ func (m Model) View() string {
 
 	b.WriteString("\n")
 	if len(m.files) == 0 {
-		b.WriteString(helpStyle.Render("c: commit • q: quit"))
+		b.WriteString(helpStyle.Render("b: branches • c: commit • q: quit"))
 	} else {
-		b.WriteString(helpStyle.Render("↑/↓ or j/k: navigate • space: toggle selection • s: stage selected • u: unstage selected • c: commit • q: quit"))
+		b.WriteString(helpStyle.Render("↑/↓ or j/k: navigate • space: toggle selection • s: stage selected • u: unstage selected • b: branches • c: commit • q: quit"))
 	}
 
 	return b.String()

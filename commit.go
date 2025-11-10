@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 )
@@ -152,4 +153,60 @@ func showCommitForm() (string, error) {
 	}
 
 	return commitMessage, nil
+}
+
+// display a huh form for branch creation
+func showCreateBranchForm() (string, error) {
+	var branchName string
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("new branch name").
+				Description("enter the name for the new branch").
+				Placeholder("feature/my-feature").
+				Value(&branchName).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("branch name cannot be empty")
+					}
+					// Basic validation for branch name
+					if strings.Contains(s, " ") {
+						return fmt.Errorf("branch name cannot contain spaces")
+					}
+					return nil
+				}),
+		),
+	).WithTheme(huh.ThemeCharm())
+
+	err := form.Run()
+	return branchName, err
+}
+
+// display a huh form for branch selection
+func showBranchSelectionForm(branches []string) (string, error) {
+	if len(branches) == 0 {
+		return "", fmt.Errorf("no branches available")
+	}
+
+	var selectedBranch string
+
+	// Create options from branches
+	options := make([]huh.Option[string], len(branches))
+	for i, branch := range branches {
+		options[i] = huh.NewOption(branch, branch)
+	}
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("select branch").
+				Description("choose a branch to switch to").
+				Options(options...).
+				Value(&selectedBranch),
+		),
+	).WithTheme(huh.ThemeCharm())
+
+	err := form.Run()
+	return selectedBranch, err
 }

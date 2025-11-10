@@ -5,13 +5,19 @@ import (
 )
 
 type Model struct {
-	files          []FileStatus
-	cursor         int
-	quitting       bool
-	showInitMenu   bool
-	showGitHubAuth bool
-	creatingRepo   bool
-	initingRepo    bool
+	files                []FileStatus
+	cursor               int
+	quitting             bool
+	showInitMenu         bool
+	showGitHubAuth       bool
+	creatingRepo         bool
+	initingRepo          bool
+	currentBranch        string
+	showBranchMenu       bool
+	creatingBranch       bool
+	switchingBranch      bool
+	showCreateBranchForm bool
+	showSwitchBranchForm bool
 }
 
 type FileStatus struct {
@@ -23,10 +29,16 @@ type FileStatus struct {
 func NewModel() Model {
 	if !isGitRepo() {
 		return Model{
-			files:        []FileStatus{},
-			cursor:       0,
-			quitting:     false,
-			showInitMenu: true,
+			files:                []FileStatus{},
+			cursor:               0,
+			quitting:             false,
+			showInitMenu:         true,
+			currentBranch:        "",
+			showBranchMenu:       false,
+			creatingBranch:       false,
+			switchingBranch:      false,
+			showCreateBranchForm: false,
+			showSwitchBranchForm: false,
 		}
 	}
 
@@ -35,10 +47,21 @@ func NewModel() Model {
 		files = []FileStatus{}
 	}
 
+	currentBranch, err := getCurrentBranch()
+	if err != nil {
+		currentBranch = "unknown"
+	}
+
 	return Model{
-		files:    files,
-		cursor:   0,
-		quitting: false,
+		files:                files,
+		cursor:               0,
+		quitting:             false,
+		currentBranch:        currentBranch,
+		showBranchMenu:       false,
+		creatingBranch:       false,
+		switchingBranch:      false,
+		showCreateBranchForm: false,
+		showSwitchBranchForm: false,
 	}
 }
 
