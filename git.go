@@ -28,31 +28,11 @@ func initGitRepoWithBranch(defaultBranch string) error {
 		return err
 	}
 
-	// create and checkout the default branch
-	w, err := r.Worktree()
-	if err != nil {
-		return err
-	}
-
-	// create an initial empty commit on the default branch
-	_, err = w.Commit("initial commit", &git.CommitOptions{})
-	if err != nil {
-		return err
-	}
-
+	// if the desired branch name is different from "master", rename it
 	if defaultBranch != "master" {
-		head, err := r.Head()
-		if err != nil {
-			return err
-		}
-
-		newBranchRef := plumbing.NewBranchReferenceName(defaultBranch)
-		err = r.Storer.SetReference(plumbing.NewHashReference(newBranchRef, head.Hash()))
-		if err != nil {
-			return err
-		}
-
-		err = r.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, newBranchRef))
+		// update HEAD to point to the new branch name
+		headRef := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(defaultBranch))
+		err = r.Storer.SetReference(headRef)
 		if err != nil {
 			return err
 		}
