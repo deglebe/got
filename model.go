@@ -5,19 +5,20 @@ import (
 )
 
 type Model struct {
-	files                []FileStatus
-	cursor               int
-	quitting             bool
-	showInitMenu         bool
-	showGitHubAuth       bool
-	creatingRepo         bool
-	initingRepo          bool
-	currentBranch        string
-	showBranchMenu       bool
-	creatingBranch       bool
-	switchingBranch      bool
-	showCreateBranchForm bool
-	showSwitchBranchForm bool
+	files            []FileStatus
+	cursor           int
+	quitting         bool
+	showInitMenu     bool
+	showGitHubAuth   bool
+	creatingRepo     bool
+	initingRepo      bool
+	currentBranch    string
+	showBranchMenu   bool
+	creatingBranch   bool
+	switchingBranch  bool
+	showBranchList   bool
+	branches         []string
+	branchListCursor int
 }
 
 type FileStatus struct {
@@ -29,16 +30,17 @@ type FileStatus struct {
 func NewModel() Model {
 	if !isGitRepo() {
 		return Model{
-			files:                []FileStatus{},
-			cursor:               0,
-			quitting:             false,
-			showInitMenu:         true,
-			currentBranch:        "",
-			showBranchMenu:       false,
-			creatingBranch:       false,
-			switchingBranch:      false,
-			showCreateBranchForm: false,
-			showSwitchBranchForm: false,
+			files:            []FileStatus{},
+			cursor:           0,
+			quitting:         false,
+			showInitMenu:     true,
+			currentBranch:    "",
+			showBranchMenu:   false,
+			creatingBranch:   false,
+			switchingBranch:  false,
+			showBranchList:   false,
+			branches:         []string{},
+			branchListCursor: 0,
 		}
 	}
 
@@ -53,15 +55,16 @@ func NewModel() Model {
 	}
 
 	return Model{
-		files:                files,
-		cursor:               0,
-		quitting:             false,
-		currentBranch:        currentBranch,
-		showBranchMenu:       false,
-		creatingBranch:       false,
-		switchingBranch:      false,
-		showCreateBranchForm: false,
-		showSwitchBranchForm: false,
+		files:            files,
+		cursor:           0,
+		quitting:         false,
+		currentBranch:    currentBranch,
+		showBranchMenu:   false,
+		creatingBranch:   false,
+		switchingBranch:  false,
+		showBranchList:   false,
+		branches:         []string{},
+		branchListCursor: 0,
 	}
 }
 

@@ -36,71 +36,7 @@ type switchBranchErrorMsg struct {
 	err error
 }
 
-type listBranchesCompleteMsg struct {
-	branches []string
-}
-
-type createBranchFormCompleteMsg struct {
-	branchName string
-}
-
-type createBranchFormErrorMsg struct {
-	err error
-}
-
-type switchBranchFormCompleteMsg struct {
-	branchName string
-}
-
-type switchBranchFormErrorMsg struct {
-	err error
-}
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle forms synchronously when they are active
-	if m.showCreateBranchForm {
-		branchName, err := showCreateBranchForm()
-		if err != nil {
-			m.showCreateBranchForm = false
-			return m, tea.Cmd(func() tea.Msg {
-				return createBranchFormErrorMsg{err: err}
-			})
-		}
-		m.showCreateBranchForm = false
-		return m, tea.Cmd(func() tea.Msg {
-			err := createBranch(branchName)
-			if err != nil {
-				return createBranchErrorMsg{err: err}
-			}
-			return createBranchCompleteMsg{branchName: branchName}
-		})
-	}
-
-	if m.showSwitchBranchForm {
-		branches, err := listBranches()
-		if err != nil {
-			m.showSwitchBranchForm = false
-			return m, tea.Cmd(func() tea.Msg {
-				return switchBranchFormErrorMsg{err: err}
-			})
-		}
-		branchName, err := showBranchSelectionForm(branches)
-		if err != nil {
-			m.showSwitchBranchForm = false
-			return m, tea.Cmd(func() tea.Msg {
-				return switchBranchFormErrorMsg{err: err}
-			})
-		}
-		m.showSwitchBranchForm = false
-		return m, tea.Cmd(func() tea.Msg {
-			err := switchBranch(branchName)
-			if err != nil {
-				return switchBranchErrorMsg{err: err}
-			}
-			return switchBranchCompleteMsg{branchName: branchName}
-		})
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -122,8 +58,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.showBranchMenu {
 				m.showBranchMenu = false
-				m.showCreateBranchForm = true
-				return m, nil
+				return m, m.createBranchForm()
 			}
 		case "2":
 			if m.showInitMenu {
@@ -133,10 +68,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.showBranchMenu {
 				m.showBranchMenu = false
-				m.showSwitchBranchForm = true
-				return m, nil
+				return m, m.switchBranchForm()
 			}
 		case "enter":
+			if m.showBranchList && m.branchListCursor < len(m.branches) {
+				selectedBranch := m.branches[m.branchListCursor]
+				if selectedBranch != m.currentBranch {
+					m.showBranchList = false
+					m.switchingBranch = true
+					return m, tea.Cmd(func() tea.Msg {
+						err := switchBranch(selectedBranch)
+						if err != nil {
+							return switchBranchErrorMsg{err: err}
+						}
+						return switchBranchCompleteMsg{branchName: selectedBranch}
+					})
+				}
+				return m, nil
+			}
 			if m.showGitHubAuth {
 				// get github token
 				token, err := getGitHubToken()
@@ -178,14 +127,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showBranchMenu = false
 				return m, nil
 			}
-			if m.showCreateBranchForm {
-				m.showCreateBranchForm = false
-				m.showBranchMenu = true
-				return m, nil
-			}
-			if m.showSwitchBranchForm {
-				m.showSwitchBranchForm = false
-				m.showBranchMenu = true
+			if m.showBranchList {
+				m.showBranchList = false
 				return m, nil
 			}
 		case "ctrl+c", "q":
@@ -193,12 +136,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "up", "k":
-			if m.cursor > 0 {
+			if m.showBranchList {
+				if m.branchListCursor > 0 {
+					m.branchListCursor--
+				}
+			} else if m.cursor > 0 {
 				m.cursor--
 			}
 
 		case "down", "j":
-			if m.cursor < len(m.files)-1 {
+			if m.showBranchList {
+				if m.branchListCursor < len(m.branches)-1 {
+					m.branchListCursor++
+				}
+			} else if m.cursor < len(m.files)-1 {
 				m.cursor++
 			}
 
@@ -226,13 +177,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "3":
 			if m.showBranchMenu {
-				return m, tea.Cmd(func() tea.Msg {
-					branches, err := listBranches()
-					if err != nil {
-						return listBranchesCompleteMsg{branches: []string{}}
-					}
-					return listBranchesCompleteMsg{branches: branches}
-				})
+				m.showBranchMenu = false
+				m.showBranchList = true
+				branches, err := listBranches()
+				if err != nil {
+					branches = []string{}
+				}
+				m.branches = branches
+				m.branchListCursor = 0
+				return m, nil
 			}
 		}
 	}
@@ -241,7 +194,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case initCompleteMsg:
 		m.initingRepo = false
 		m.files = msg.files
-		// Set current branch after repo initialization
 		currentBranch, err := getCurrentBranch()
 		if err == nil {
 			m.currentBranch = currentBranch
@@ -260,7 +212,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			files = []FileStatus{}
 		}
 		m.files = files
-		// Set current branch after repo creation
+		// set current branch after repo creation
 		currentBranch, err := getCurrentBranch()
 		if err == nil {
 			m.currentBranch = currentBranch
@@ -274,7 +226,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case createBranchCompleteMsg:
 		m.creatingBranch = false
-		// Update current branch and refresh files
+		// update current branch and refresh files
 		currentBranch, err := getCurrentBranch()
 		if err == nil {
 			m.currentBranch = currentBranch
@@ -283,45 +235,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case createBranchErrorMsg:
 		m.creatingBranch = false
-		m.showBranchMenu = true
 		// TODO: show error message
 		return m, nil
 	case switchBranchCompleteMsg:
 		m.switchingBranch = false
-		m.currentBranch = msg.branchName
+		if currentBranch, err := getCurrentBranch(); err == nil {
+			m.currentBranch = currentBranch
+		} else {
+			m.currentBranch = msg.branchName
+		}
 		m.refreshFiles()
 		return m, nil
 	case switchBranchErrorMsg:
 		m.switchingBranch = false
-		m.showBranchMenu = true
-		// TODO: show error message
-		return m, nil
-	case listBranchesCompleteMsg:
-		// For now, just show the branches in the menu - could be enhanced to show in a separate view
-		// TODO: implement branch listing view
-		return m, nil
-	case createBranchFormCompleteMsg:
-		m.creatingBranch = false
-		// Update current branch and refresh files
-		currentBranch, err := getCurrentBranch()
-		if err == nil {
-			m.currentBranch = currentBranch
-		}
-		m.refreshFiles()
-		return m, nil
-	case createBranchFormErrorMsg:
-		m.creatingBranch = false
-		m.showBranchMenu = true
-		// TODO: show error message
-		return m, nil
-	case switchBranchFormCompleteMsg:
-		m.switchingBranch = false
-		m.currentBranch = msg.branchName
-		m.refreshFiles()
-		return m, nil
-	case switchBranchFormErrorMsg:
-		m.switchingBranch = false
-		m.showBranchMenu = true
 		// TODO: show error message
 		return m, nil
 	}
@@ -368,4 +294,45 @@ func (m *Model) commitChanges() {
 			m.refreshFiles()
 		}
 	}
+}
+
+// shows create branch form and creates branch
+func (m *Model) createBranchForm() tea.Cmd {
+	branchName, err := showCreateBranchForm()
+	if err != nil {
+		// Handle error - could show error message here
+		return nil
+	}
+	if branchName != "" {
+		return tea.Cmd(func() tea.Msg {
+			err := createBranch(branchName)
+			if err != nil {
+				return createBranchErrorMsg{err: err}
+			}
+			return createBranchCompleteMsg{branchName: branchName}
+		})
+	}
+	return nil
+}
+
+// shows switch branch form and switches branch
+func (m *Model) switchBranchForm() tea.Cmd {
+	branches, err := listBranches()
+	if err != nil {
+		return nil
+	}
+	branchName, err := showBranchSelectionForm(branches)
+	if err != nil {
+		return nil
+	}
+	if branchName != "" {
+		return tea.Cmd(func() tea.Msg {
+			err := switchBranch(branchName)
+			if err != nil {
+				return switchBranchErrorMsg{err: err}
+			}
+			return switchBranchCompleteMsg{branchName: branchName}
+		})
+	}
+	return nil
 }

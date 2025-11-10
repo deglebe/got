@@ -169,7 +169,7 @@ func unstageFile(path string) error {
 	return err
 }
 
-// commit creates a commit with the given message
+// creates a commit with the given message
 func commit(message string) error {
 	_, w, err := openRepo()
 	if err != nil {
@@ -180,7 +180,7 @@ func commit(message string) error {
 	return err
 }
 
-// getCurrentBranch returns the name of the current branch
+// returns the name of the current branch
 func getCurrentBranch() (string, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
@@ -192,7 +192,6 @@ func getCurrentBranch() (string, error) {
 		return "", err
 	}
 
-	// Check if we're on a branch (not detached HEAD)
 	if head.Name().IsBranch() {
 		return head.Name().Short(), nil
 	}
@@ -200,7 +199,7 @@ func getCurrentBranch() (string, error) {
 	return "HEAD", nil
 }
 
-// listBranches returns a list of all branches
+// returns a list of all local branches
 func listBranches() ([]string, error) {
 	r, err := git.PlainOpen(".")
 	if err != nil {
@@ -214,14 +213,16 @@ func listBranches() ([]string, error) {
 
 	var branchNames []string
 	err = branches.ForEach(func(ref *plumbing.Reference) error {
-		branchNames = append(branchNames, ref.Name().Short())
+		if !strings.Contains(ref.Name().String(), "refs/remotes/") {
+			branchNames = append(branchNames, ref.Name().Short())
+		}
 		return nil
 	})
 
 	return branchNames, err
 }
 
-// createBranch creates a new branch from the current HEAD
+// creates a new branch from the current HEAD
 func createBranch(branchName string) error {
 	r, err := git.PlainOpen(".")
 	if err != nil {
@@ -233,14 +234,14 @@ func createBranch(branchName string) error {
 		return err
 	}
 
-	// Create the new branch
+	// create the new branch
 	refName := plumbing.NewBranchReferenceName(branchName)
 	ref := plumbing.NewHashReference(refName, head.Hash())
 
 	return r.Storer.SetReference(ref)
 }
 
-// switchBranch switches to the specified branch
+// switches to the specified branch
 func switchBranch(branchName string) error {
 	r, err := git.PlainOpen(".")
 	if err != nil {
@@ -252,7 +253,6 @@ func switchBranch(branchName string) error {
 		return err
 	}
 
-	// Checkout the branch
 	err = w.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(branchName),
 	})

@@ -15,7 +15,7 @@ func showGitHubTokenForm() (string, error) {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("github personal access token").
-				Description("enter your token (will be hidden)").
+				Description("enter your token (will be hidden, esc to cancel)").
 				Placeholder("ghp_...").
 				Value(&token).
 				EchoMode(huh.EchoModePassword).
@@ -43,7 +43,7 @@ func showGitHubRepoForm(token string) (string, string, bool, string, error) {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("repository name").
-				Description("choose a name for your repository").
+				Description("choose a name for your repository (esc to cancel)").
 				Placeholder("my_project").
 				Value(&repoName).
 				Validate(func(s string) error {
@@ -64,7 +64,7 @@ func showGitHubRepoForm(token string) (string, string, bool, string, error) {
 				Value(&defaultBranch).
 				Validate(func(s string) error {
 					if s == "" {
-						defaultBranch = "main" // Set default if empty
+						defaultBranch = "main" // set default if empty
 						return nil
 					}
 					return nil
@@ -106,7 +106,7 @@ func showCommitForm() (string, error) {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("commit type").
-				Description("select the type of change you're committing").
+				Description("select the type of change you're committing (esc to cancel)").
 				Options(types...).
 				Value(&commitType),
 			huh.NewInput().
@@ -163,14 +163,13 @@ func showCreateBranchForm() (string, error) {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("new branch name").
-				Description("enter the name for the new branch").
+				Description("enter the name for the new branch (esc to cancel)").
 				Placeholder("feature/my-feature").
 				Value(&branchName).
 				Validate(func(s string) error {
 					if s == "" {
 						return fmt.Errorf("branch name cannot be empty")
 					}
-					// Basic validation for branch name
 					if strings.Contains(s, " ") {
 						return fmt.Errorf("branch name cannot contain spaces")
 					}
@@ -191,7 +190,6 @@ func showBranchSelectionForm(branches []string) (string, error) {
 
 	var selectedBranch string
 
-	// Create options from branches
 	options := make([]huh.Option[string], len(branches))
 	for i, branch := range branches {
 		options[i] = huh.NewOption(branch, branch)
@@ -201,7 +199,7 @@ func showBranchSelectionForm(branches []string) (string, error) {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("select branch").
-				Description("choose a branch to switch to").
+				Description("choose a branch to switch to (esc to cancel)").
 				Options(options...).
 				Value(&selectedBranch),
 		),

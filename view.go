@@ -86,6 +86,44 @@ func (m Model) renderBranchMenu() string {
 	return b.String()
 }
 
+// branch list view for viewing all branches
+func (m Model) renderBranchList() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("all branches"))
+	b.WriteString("\n\n")
+	b.WriteString("current branch: " + m.currentBranch + "\n\n")
+
+	if len(m.branches) == 0 {
+		b.WriteString("no branches found.\n")
+	} else {
+		for i, branch := range m.branches {
+			cursor := " "
+			if m.branchListCursor == i {
+				cursor = cursorStyle.Render(">")
+			}
+
+			branchDisplay := branch
+			if branch == m.currentBranch {
+				branchDisplay = selectedStyle.Render("* " + branch)
+			}
+
+			line := fmt.Sprintf("%s %s", cursor, branchDisplay)
+			if m.branchListCursor == i {
+				line = cursorStyle.Render(line)
+			}
+
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("↑/↓ or j/k: navigate • enter: switch to branch • esc: back"))
+
+	return b.String()
+}
+
 func (m Model) View() string {
 	if m.quitting {
 		return "goodbye!\n"
@@ -119,17 +157,12 @@ func (m Model) View() string {
 		return "switching branch...\n"
 	}
 
-	if m.showCreateBranchForm {
-		return "creating new branch...\nuse the form that appears\n"
-	}
-
-	if m.showSwitchBranchForm {
-		return "switching branch...\nuse the form that appears\n"
+	if m.showBranchList {
+		return m.renderBranchList()
 	}
 
 	var b strings.Builder
 
-	// Show current branch in title if available
 	title := "got"
 	if m.currentBranch != "" {
 		title += " (" + m.currentBranch + ")"
