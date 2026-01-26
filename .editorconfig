@@ -8,10 +8,8 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 
 [*.go]
-# Go standard is tabs, set to 8 spaces wide as requested
 indent_style = tab
 indent_size = 8
 tab_width = 8
 
-# Max line length for Go files
 max_line_length = 120
