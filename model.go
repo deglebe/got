@@ -20,6 +20,8 @@ type Model struct {
 	showBranchList    bool
 	branches          []string
 	branchListCursor  int
+	toast             Toast
+	showToast         bool
 }
 
 type FileStatus struct {
@@ -43,6 +45,8 @@ func NewModel() Model {
 			branches:          []string{},
 			branchListCursor:  0,
 			showLocalRepoForm: false,
+			toast:             Toast{},
+			showToast:         false,
 		}
 	}
 
@@ -68,6 +72,8 @@ func NewModel() Model {
 		branches:          []string{},
 		branchListCursor:  0,
 		showLocalRepoForm: false,
+		toast:             Toast{},
+		showToast:         false,
 	}
 }
 

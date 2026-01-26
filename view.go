@@ -50,6 +50,11 @@ func (m Model) renderInitMenu() string {
 	b.WriteString("q. quit\n\n")
 	b.WriteString(helpStyle.Render("press 1, 2, or q"))
 
+	if m.showToast {
+		b.WriteString("\n\n")
+		b.WriteString(renderToast(m.toast))
+	}
+
 	return b.String()
 }
 
@@ -65,6 +70,11 @@ func (m Model) renderGitHubAuth() string {
 	b.WriteString("create a token at: https://github.com/settings/tokens\n")
 	b.WriteString("required scopes: repo, workflow\n\n")
 	b.WriteString(helpStyle.Render("press enter to continue, esc to go back"))
+
+	if m.showToast {
+		b.WriteString("\n\n")
+		b.WriteString(renderToast(m.toast))
+	}
 
 	return b.String()
 }
@@ -82,6 +92,11 @@ func (m Model) renderBranchMenu() string {
 	b.WriteString("3. list all branches\n")
 	b.WriteString("esc. back to main menu\n\n")
 	b.WriteString(helpStyle.Render("press 1, 2, 3, or esc"))
+
+	if m.showToast {
+		b.WriteString("\n\n")
+		b.WriteString(renderToast(m.toast))
+	}
 
 	return b.String()
 }
@@ -120,6 +135,11 @@ func (m Model) renderBranchList() string {
 
 	b.WriteString("\n")
 	b.WriteString(helpStyle.Render("↑/↓ or j/k: navigate • enter: switch to branch • esc: back"))
+
+	if m.showToast {
+		b.WriteString("\n\n")
+		b.WriteString(renderToast(m.toast))
+	}
 
 	return b.String()
 }
@@ -201,6 +221,11 @@ func (m Model) View() string {
 		b.WriteString(helpStyle.Render("b: branches • c: commit • q: quit"))
 	} else {
 		b.WriteString(helpStyle.Render("↑/↓ or j/k: navigate • space: toggle selection • s: stage selected • u: unstage selected • b: branches • c: commit • q: quit"))
+	}
+
+	if m.showToast {
+		b.WriteString("\n\n")
+		b.WriteString(renderToast(m.toast))
 	}
 
 	return b.String()
