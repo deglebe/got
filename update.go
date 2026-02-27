@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 )
 
 type initCompleteMsg struct {
@@ -39,6 +42,47 @@ type switchBranchErrorMsg struct {
 	err error
 }
 
+type commitFormCompleteMsg struct {
+	message string
+	err     error
+}
+
+type createBranchFormCompleteMsg struct {
+	branchName string
+	err        error
+}
+
+type switchBranchFormCompleteMsg struct {
+	branchName string
+	err        error
+}
+
+type initLocalRepoFormCompleteMsg struct {
+	defaultBranch string
+	err           error
+}
+
+type githubSetupFormCompleteMsg struct {
+	token         string
+	repoName      string
+	repoDesc      string
+	repoPrivate   bool
+	defaultBranch string
+	err           error
+}
+
+type formExecCommand struct {
+	run func() error
+}
+
+func (c formExecCommand) Run() error {
+	return c.run()
+}
+
+func (formExecCommand) SetStdin(io.Reader)  {}
+func (formExecCommand) SetStdout(io.Writer) {}
+func (formExecCommand) SetStderr(io.Writer) {}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -46,11 +90,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "1":
 			if m.showInitMenu {
 				m.showInitMenu = false
-				return m, m.initLocalRepo()
+				return m, runInitLocalRepoFormCmd()
 			}
 			if m.showBranchMenu {
 				m.showBranchMenu = false
-				return m, m.createBranchForm()
+				return m, runCreateBranchFormCmd()
 			}
 		case "2":
 			if m.showInitMenu {
@@ -60,7 +104,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.showBranchMenu {
 				m.showBranchMenu = false
-				return m, m.switchBranchForm()
+				return m, runSwitchBranchFormCmd()
 			}
 		case "enter":
 			if m.showBranchList && m.branchListCursor < len(m.branches) {
@@ -79,35 +123,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.showGitHubAuth {
-				// get github token
-				token, err := getGitHubToken()
-				if err != nil {
-					m.showGitHubAuth = false
-					m.showInitMenu = true
-					return m, showToast(fmt.Sprintf("GitHub token error: %v", err), ToastError)
-				}
-
-				// token valid: show repo form
-				repoName, repoDesc, repoPrivate, defaultBranch, err := showGitHubRepoForm(token)
-				if err != nil {
-					return m, nil
-				}
-
-				m.creatingRepo = true
 				m.showGitHubAuth = false
-
-				return m, tea.Cmd(func() tea.Msg {
-					if err := initGitRepo(); err != nil {
-						return githubRepoErrorMsg{err: err}
-					}
-
-					repo, err := createGitHubRepo(token, repoName, repoDesc, repoPrivate, defaultBranch)
-					if err != nil {
-						return githubRepoErrorMsg{err: err}
-					}
-
-					return githubRepoCompleteMsg{repoURL: repo.GetHTMLURL()}
-				})
+				return m, runGitHubSetupFormCmd()
 			}
 		case "esc":
 			if m.showGitHubAuth {
@@ -165,7 +182,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "c":
-			return m, m.commitChanges()
+			return m, runCommitFormCmd()
 
 		case "b":
 			if !m.showInitMenu && !m.showGitHubAuth && !m.creatingRepo && !m.initingRepo {
@@ -190,6 +207,69 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case commitFormCompleteMsg:
+		if msg.err != nil {
+			if errors.Is(msg.err, huh.ErrUserAborted) {
+				return m, showToast("commit cancelled", ToastInfo)
+			}
+			return m, showToast(fmt.Sprintf("failed to open commit form: %v", msg.err), ToastError)
+		}
+		if msg.message == "" {
+			return m, showToast("commit cancelled", ToastInfo)
+		}
+		return m, m.commitWithMessage(msg.message)
+	case createBranchFormCompleteMsg:
+		if msg.err != nil {
+			if errors.Is(msg.err, huh.ErrUserAborted) {
+				return m, showToast("branch creation cancelled", ToastInfo)
+			}
+			return m, showToast(fmt.Sprintf("failed to open branch form: %v", msg.err), ToastError)
+		}
+		if msg.branchName == "" {
+			return m, showToast("branch creation cancelled", ToastInfo)
+		}
+		m.creatingBranch = true
+		return m, m.createBranch(msg.branchName)
+	case switchBranchFormCompleteMsg:
+		if msg.err != nil {
+			if errors.Is(msg.err, huh.ErrUserAborted) {
+				return m, showToast("branch switch cancelled", ToastInfo)
+			}
+			return m, showToast(fmt.Sprintf("failed to open branch selector: %v", msg.err), ToastError)
+		}
+		if msg.branchName == "" {
+			return m, showToast("branch switch cancelled", ToastInfo)
+		}
+		m.switchingBranch = true
+		return m, m.switchBranch(msg.branchName)
+	case initLocalRepoFormCompleteMsg:
+		if msg.err != nil {
+			m.showInitMenu = true
+			if errors.Is(msg.err, huh.ErrUserAborted) {
+				return m, showToast("repository initialization cancelled", ToastInfo)
+			}
+			return m, showToast(fmt.Sprintf("failed to open initialization form: %v", msg.err), ToastError)
+		}
+		if msg.defaultBranch == "" {
+			m.showInitMenu = true
+			return m, showToast("repository initialization cancelled", ToastInfo)
+		}
+		m.initingRepo = true
+		return m, m.initLocalRepo(msg.defaultBranch)
+	case githubSetupFormCompleteMsg:
+		if msg.err != nil {
+			m.showInitMenu = true
+			if errors.Is(msg.err, huh.ErrUserAborted) {
+				return m, showToast("github setup cancelled", ToastInfo)
+			}
+			return m, showToast(fmt.Sprintf("GitHub token error: %v", msg.err), ToastError)
+		}
+		if msg.token == "" || msg.repoName == "" {
+			m.showInitMenu = true
+			return m, showToast("github setup cancelled", ToastInfo)
+		}
+		m.creatingRepo = true
+		return m, m.createGitHubRepo(msg.token, msg.repoName, msg.repoDesc, msg.repoPrivate, msg.defaultBranch)
 	case showToastMsg:
 		m.toast = msg.toast
 		m.showToast = true
@@ -257,6 +337,92 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func runCommitFormCmd() tea.Cmd {
+	var message string
+	return tea.Exec(formExecCommand{
+		run: func() error {
+			var err error
+			message, err = showCommitForm()
+			return err
+		},
+	}, func(err error) tea.Msg {
+		return commitFormCompleteMsg{message: message, err: err}
+	})
+}
+
+func runCreateBranchFormCmd() tea.Cmd {
+	var branchName string
+	return tea.Exec(formExecCommand{
+		run: func() error {
+			var err error
+			branchName, err = showCreateBranchForm()
+			return err
+		},
+	}, func(err error) tea.Msg {
+		return createBranchFormCompleteMsg{branchName: branchName, err: err}
+	})
+}
+
+func runSwitchBranchFormCmd() tea.Cmd {
+	var branchName string
+	return tea.Exec(formExecCommand{
+		run: func() error {
+			branches, err := listBranches()
+			if err != nil {
+				return err
+			}
+			branchName, err = showBranchSelectionForm(branches)
+			return err
+		},
+	}, func(err error) tea.Msg {
+		return switchBranchFormCompleteMsg{branchName: branchName, err: err}
+	})
+}
+
+func runInitLocalRepoFormCmd() tea.Cmd {
+	var defaultBranch string
+	return tea.Exec(formExecCommand{
+		run: func() error {
+			var err error
+			defaultBranch, err = showLocalRepoForm()
+			return err
+		},
+	}, func(err error) tea.Msg {
+		return initLocalRepoFormCompleteMsg{defaultBranch: defaultBranch, err: err}
+	})
+}
+
+func runGitHubSetupFormCmd() tea.Cmd {
+	var (
+		token         string
+		repoName      string
+		repoDesc      string
+		repoPrivate   bool
+		defaultBranch string
+	)
+
+	return tea.Exec(formExecCommand{
+		run: func() error {
+			var err error
+			token, err = getGitHubToken()
+			if err != nil {
+				return err
+			}
+			repoName, repoDesc, repoPrivate, defaultBranch, err = showGitHubRepoForm(token)
+			return err
+		},
+	}, func(err error) tea.Msg {
+		return githubSetupFormCompleteMsg{
+			token:         token,
+			repoName:      repoName,
+			repoDesc:      repoDesc,
+			repoPrivate:   repoPrivate,
+			defaultBranch: defaultBranch,
+			err:           err,
+		}
+	})
 }
 
 // stages all selected files
@@ -332,21 +498,18 @@ func (m *Model) refreshFiles() {
 }
 
 // shows commit form and commits changes
-func (m *Model) commitChanges() tea.Cmd {
-	if message, err := showCommitForm(); err == nil && message != "" {
-		return tea.Cmd(func() tea.Msg {
-			if err := commit(message); err != nil {
-				return showToastMsg{
-					toast: Toast{
-						Message: fmt.Sprintf("failed to commit: %v", err),
-						Type:    ToastError,
-					},
-				}
+func (m *Model) commitWithMessage(message string) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		if err := commit(message); err != nil {
+			return showToastMsg{
+				toast: Toast{
+					Message: fmt.Sprintf("failed to commit: %v", err),
+					Type:    ToastError,
+				},
 			}
-			return commitSuccessMsg{}
-		})
-	}
-	return nil
+		}
+		return commitSuccessMsg{}
+	})
 }
 
 type commitSuccessMsg struct{}
@@ -357,63 +520,53 @@ func (m *Model) handleCommitSuccess() tea.Cmd {
 }
 
 // shows create branch form and creates branch
-func (m *Model) createBranchForm() tea.Cmd {
-	branchName, err := showCreateBranchForm()
-	if err != nil {
-		return showToast("branch creation cancelled", ToastInfo)
-	}
-	if branchName != "" {
-		return tea.Cmd(func() tea.Msg {
-			err := createBranch(branchName)
-			if err != nil {
-				return createBranchErrorMsg{err: err}
-			}
-			return createBranchCompleteMsg{branchName: branchName}
-		})
-	}
-	return nil
+func (m *Model) createBranch(branchName string) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		err := createBranch(branchName)
+		if err != nil {
+			return createBranchErrorMsg{err: err}
+		}
+		return createBranchCompleteMsg{branchName: branchName}
+	})
 }
 
 // shows switch branch form and switches branch
-func (m *Model) switchBranchForm() tea.Cmd {
-	branches, err := listBranches()
-	if err != nil {
-		return showToast(fmt.Sprintf("failed to list branches: %v", err), ToastError)
-	}
-	branchName, err := showBranchSelectionForm(branches)
-	if err != nil {
-		return showToast("branch switch cancelled", ToastInfo)
-	}
-	if branchName != "" {
-		return tea.Cmd(func() tea.Msg {
-			err := switchBranch(branchName)
-			if err != nil {
-				return switchBranchErrorMsg{err: err}
-			}
-			return switchBranchCompleteMsg{branchName: branchName}
-		})
-	}
-	return nil
+func (m *Model) switchBranch(branchName string) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		err := switchBranch(branchName)
+		if err != nil {
+			return switchBranchErrorMsg{err: err}
+		}
+		return switchBranchCompleteMsg{branchName: branchName}
+	})
 }
 
 // shows local repo form and initializes repository
-func (m *Model) initLocalRepo() tea.Cmd {
-	defaultBranch, err := showLocalRepoForm()
-	if err != nil {
-		return showToast("repository initialization cancelled", ToastInfo)
-	}
-	if defaultBranch != "" {
-		return tea.Cmd(func() tea.Msg {
-			err := initGitRepoWithBranch(defaultBranch)
-			if err != nil {
-				return initErrorMsg{err: err}
-			}
-			files, err := getGitStatus()
-			if err != nil {
-				files = []FileStatus{}
-			}
-			return initCompleteMsg{files: files}
-		})
-	}
-	return nil
+func (m *Model) initLocalRepo(defaultBranch string) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		err := initGitRepoWithBranch(defaultBranch)
+		if err != nil {
+			return initErrorMsg{err: err}
+		}
+		files, err := getGitStatus()
+		if err != nil {
+			files = []FileStatus{}
+		}
+		return initCompleteMsg{files: files}
+	})
+}
+
+func (m *Model) createGitHubRepo(token, repoName, repoDesc string, repoPrivate bool, defaultBranch string) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		if err := initGitRepo(); err != nil {
+			return githubRepoErrorMsg{err: err}
+		}
+
+		repo, err := createGitHubRepo(token, repoName, repoDesc, repoPrivate, defaultBranch)
+		if err != nil {
+			return githubRepoErrorMsg{err: err}
+		}
+
+		return githubRepoCompleteMsg{repoURL: repo.GetHTMLURL()}
+	})
 }

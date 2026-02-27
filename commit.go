@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 )
 
@@ -26,7 +27,8 @@ func showGitHubTokenForm() (string, error) {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).
+		WithProgramOptions(tea.WithAltScreen())
 
 	err := form.Run()
 	return token, err
@@ -74,7 +76,8 @@ func showGitHubRepoForm(token string) (string, string, bool, string, error) {
 				Description("make this repository private").
 				Value(&repoPrivate),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).
+		WithProgramOptions(tea.WithAltScreen())
 
 	err := form.Run()
 	return repoName, repoDesc, repoPrivate, defaultBranch, err
@@ -134,7 +137,8 @@ func showCommitForm() (string, error) {
 				Placeholder("this change implements user authentication with...").
 				Value(&commitBody),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).
+		WithProgramOptions(tea.WithAltScreen())
 
 	err := form.Run()
 	if err != nil {
@@ -176,7 +180,8 @@ func showCreateBranchForm() (string, error) {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).
+		WithProgramOptions(tea.WithAltScreen())
 
 	err := form.Run()
 	return branchName, err
@@ -203,7 +208,8 @@ func showBranchSelectionForm(branches []string) (string, error) {
 				Options(options...).
 				Value(&selectedBranch),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).
+		WithProgramOptions(tea.WithAltScreen())
 
 	err := form.Run()
 	return selectedBranch, err
@@ -230,7 +236,8 @@ func showLocalRepoForm() (string, error) {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).
+		WithProgramOptions(tea.WithAltScreen())
 
 	err := form.Run()
 	return defaultBranch, err
