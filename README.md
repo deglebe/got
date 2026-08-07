@@ -1,1 +1,3 @@
 # got
+
+THIS REPOSITORY IS ARCHIVED, ALL FUTURE SOURCE CHANGES OCCUR AT https://git.sr.ht/~deglebe/got
